@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MR. FLOPS — Verlaten Pretpark</title>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#000;overflow:hidden;font-family:'Nunito',sans-serif;user-select:none;}
+canvas{display:block;touch-action:none;}
+
+/* UI OVERLAY */
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10;}
+
+/* TITLE SCREEN */
+#title-screen{
+  position:fixed;inset:0;background:#000;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 60%, #1a0000 0%, #000 70%);
+}
+.title-flicker{animation:flicker 4s infinite;}
+@keyframes flicker{0%,95%,100%{opacity:1;}96%{opacity:0.3;}97%{opacity:1;}98%{opacity:0.2;}99%{opacity:1;}}
+.game-title{
+  font-family:'Creepster',cursive;
+  font-size:clamp(42px,12vw,80px);
+  color:#ff2200;
+  text-shadow:0 0 20px #ff0000,0 0 60px #ff000088,0 4px 0 #660000;
+  letter-spacing:4px;
+  text-align:center;
+  line-height:1;
+}
+.game-sub{
+  font-family:'Creepster',cursive;
+  font-size:clamp(14px,4vw,22px);
+  color:#cc6600;
+  letter-spacing:6px;
+  margin-top:8px;
+  text-shadow:0 0 10px #ff660044;
+  text-align:center;
+}
+.mr-flops-title{
+  font-size:clamp(80px,25vw,160px);
+  margin:20px 0;
+  filter:drop-shadow(0 0 30px #ff000066);
+  animation:tilt 3s ease-in-out infinite;
+}
+@keyframes tilt{0%,100%{transform:rotate(-5deg) scale(1);}50%{transform:rotate(5deg) scale(1.05);}}
+.start-btn{
+  margin-top:24px;
+  background:linear-gradient(135deg,#8b0000,#cc0000);
+  border:3px solid #ff2200;
+  border-radius:6px;
+  padding:14px 40px;
+  font-family:'Creepster',cursive;
+  font-size:clamp(18px,5vw,28px);
+  color:#fff;
+  letter-spacing:3px;
+  cursor:pointer;
+  pointer-events:all;
+  box-shadow:0 0 20px #ff000066,inset 0 0 10px #ff000022;
+  transition:all 0.2s;
+  text-shadow:0 0 10px #ff6600;
+}
+.start-btn:hover,.start-btn:active{background:linear-gradient(135deg,#cc0000,#ff2200);box-shadow:0 0 40px #ff0000aa;transform:scale(1.05);}
+.level-select{display:none;flex-direction:column;align-items:center;gap:10px;margin-top:20px;width:100%;max-width:320px;}
+.level-btn{
+  width:100%;background:rgba(139,0,0,0.4);border:2px solid #8b0000;border-radius:6px;
+  padding:10px 20px;font-family:'Creepster',cursive;font-size:clamp(16px,4vw,22px);
+  color:#ffaa00;letter-spacing:2px;cursor:pointer;pointer-events:all;
+  display:flex;justify-content:space-between;align-items:center;transition:all 0.2s;
+}
+.level-btn:hover{background:rgba(200,0,0,0.5);border-color:#cc0000;}
+.level-btn.locked{color:#555;border-color:#333;cursor:not-allowed;}
+.level-btn .lock{font-size:14px;}
+.title-hint{font-size:11px;color:#555;letter-spacing:2px;margin-top:16px;text-align:center;}
+
+/* HUD */
+#hud{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;background:linear-gradient(180deg,rgba(0,0,0,0.8),transparent);
+  z-index:20;
+}
+.hud-left{display:flex;flex-direction:column;gap:3px;}
+.hp-label{font-size:9px;font-weight:900;color:#ff4444;letter-spacing:2px;text-transform:uppercase;}
+.hp-bar{width:110px;height:10px;background:#1a0000;border:1.5px solid #660000;border-radius:3px;overflow:hidden;}
+.hp-fill{height:100%;background:linear-gradient(90deg,#ff0000,#ff4400);border-radius:2px;transition:width 0.3s;}
+.sanity-bar{width:110px;height:6px;background:#001a1a;border:1.5px solid #006666;border-radius:3px;overflow:hidden;margin-top:2px;}
+.sanity-fill{height:100%;background:linear-gradient(90deg,#00ffff,#0088ff);border-radius:2px;transition:width 0.3s;}
+.hud-center{text-align:center;}
+.level-name{font-family:'Creepster',cursive;font-size:clamp(13px,3.5vw,18px);color:#ffaa00;text-shadow:0 0 8px #ff660066;letter-spacing:2px;}
+.hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.score-num{font-family:'Creepster',cursive;font-size:clamp(16px,4vw,22px);color:#ffdd00;text-shadow:0 0 8px #ffaa0066;}
+.score-label{font-size:9px;color:#886600;letter-spacing:2px;}
+
+/* D-PAD */
+#dpad{
+  position:fixed;bottom:24px;left:16px;z-index:20;
+  display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:3px;
+}
+.d-btn{
+  background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;transition:background 0.1s;-webkit-user-select:none;
+  touch-action:none;
+}
+.d-btn:active,.d-btn.pressed{background:rgba(255,80,0,0.35);border-color:rgba(255,80,0,0.6);}
+.d-center{background:rgba(255,255,255,0.04);}
+
+/* ACTION BUTTONS */
+#actions{
+  position:fixed;bottom:24px;right:16px;z-index:20;
+  display:flex;flex-direction:column;gap:8px;align-items:flex-end;
+}
+.act-btn{
+  background:rgba(139,0,0,0.4);border:1.5px solid #8b0000;border-radius:10px;
+  padding:10px 16px;font-family:'Creepster',cursive;font-size:clamp(13px,3.5vw,16px);
+  color:#ffaa00;letter-spacing:1px;cursor:pointer;transition:all 0.15s;
+}
+.act-btn:active{background:rgba(200,0,0,0.6);transform:scale(0.95);}
+
+/* ITEM PICKUP FLASH */
+#pickup-flash{
+  position:fixed;inset:0;pointer-events:none;z-index:30;
+  background:rgba(0,255,100,0.15);opacity:0;transition:opacity 0.15s;
+}
+/* DAMAGE FLASH */
+#dmg-flash{
+  position:fixed;inset:0;pointer-events:none;z-index:30;
+  background:rgba(255,0,0,0.35);opacity:0;transition:opacity 0.2s;
+}
+/* SCARE FLASH */
+#scare-overlay{
+  position:fixed;inset:0;pointer-events:none;z-index:50;
+  opacity:0;background:radial-gradient(ellipse at center, transparent 20%, #000 100%);
+  transition:opacity 0.1s;
+}
+
+/* JUMPSCARE */
+#jumpscare{
+  position:fixed;inset:0;z-index:200;background:#000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+}
+.js-face{font-size:min(50vw,50vh);animation:jspop 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes jspop{from{transform:scale(0.2) rotate(-20deg);}to{transform:scale(1) rotate(0deg);}}
+.js-text{font-family:'Creepster',cursive;font-size:clamp(28px,8vw,56px);color:#ff0000;margin-top:10px;letter-spacing:4px;text-shadow:0 0 30px #ff0000;}
+
+/* GAME OVER */
+#gameover{
+  position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.95);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+}
+.go-title{font-family:'Creepster',cursive;font-size:clamp(40px,12vw,80px);color:#ff0000;text-shadow:0 0 30px #ff0000;letter-spacing:4px;}
+.go-sub{font-family:'Creepster',cursive;font-size:clamp(16px,4vw,24px);color:#cc6600;margin-top:8px;letter-spacing:2px;}
+.go-score{font-family:'Creepster',cursive;font-size:clamp(20px,5vw,32px);color:#ffdd00;margin-top:20px;}
+.go-btn{margin-top:24px;background:#8b0000;border:2px solid #ff2200;border-radius:6px;padding:12px 32px;font-family:'Creepster',cursive;font-size:clamp(16px,4vw,22px);color:#fff;letter-spacing:3px;cursor:pointer;}
+
+/* WIN */
+#win-screen{
+  position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.95);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+}
+.win-title{font-family:'Creepster',cursive;font-size:clamp(32px,10vw,64px);color:#ffdd00;text-shadow:0 0 20px #ffaa00;letter-spacing:3px;text-align:center;}
+
+/* POPUP MSG */
+#popup-msg{
+  position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:40;
+  background:rgba(0,0,0,0.85);border:1.5px solid #8b0000;border-radius:8px;
+  padding:8px 18px;font-family:'Creepster',cursive;font-size:clamp(13px,3.5vw,17px);
+  color:#ffaa00;letter-spacing:1px;opacity:0;transition:opacity 0.3s;white-space:nowrap;
+  pointer-events:none;
+}
+
+/* MINIMAP */
+#minimap{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:20;
+  width:80px;height:80px;background:rgba(0,0,0,0.7);border:1.5px solid #333;border-radius:6px;
+  overflow:hidden;
+}
+#minimap canvas{width:80px;height:80px;}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="title-screen">
+  <div class="title-flicker">
+    <div class="game-title">MR. FLOPS</div>
+    <div class="game-sub">VERLATEN PRETPARK</div>
+  </div>
+  <div class="mr-flops-title">🤡</div>
+  <button class="start-btn" onclick="showLevelSelect()" id="start-btn">▶ SPELEN</button>
+  <div class="level-select" id="level-select">
+    <div class="level-btn" onclick="startLevel(0)"><span>🎠 KINDERLAND</span><span class="lock">🔓</span></div>
+    <div class="level-btn locked" id="lvl1-btn"><span>🏠 SPOOKHUIS</span><span class="lock">🔒</span></div>
+    <div class="level-btn locked" id="lvl2-btn"><span>🌳 DONKER BOS</span><span class="lock">🔒</span></div>
+    <div class="level-btn locked" id="lvl3-btn"><span>🏰 HET KASTEEL</span><span class="lock">🔒</span></div>
+    <div class="level-btn locked" id="lvl4-btn"><span>👁️ MR. FLOPS LAIR</span><span class="lock">🔒</span></div>
+  </div>
+  <div class="title-hint">ONTSNAP • VERZAMEL SLEUTELS • OVERLEEF MR. FLOPS</div>
+</div>
+
+<!-- GAME UI -->
+<div id="hud" style="display:none">
+  <div class="hud-left">
+    <div class="hp-label">❤️ LEVEN</div>
+    <div class="hp-bar"><div class="hp-fill" id="hp-fill" style="width:100%"></div></div>
+    <div class="sanity-bar"><div class="sanity-fill" id="san-fill" style="width:100%"></div></div>
+    <div style="font-size:9px;color:#006666;letter-spacing:1px;margin-top:1px">🧠 GEZOND VERSTAND</div>
+  </div>
+  <div class="hud-center">
+    <div class="level-name" id="level-name">KINDERLAND</div>
+    <div style="font-size:10px;color:#666;letter-spacing:1px;margin-top:2px">🔑 <span id="keys-collected">0</span> / <span id="keys-needed">3</span> SLEUTELS</div>
+  </div>
+  <div class="hud-right">
+    <div class="score-num" id="score-display">0</div>
+    <div class="score-label">PUNTEN</div>
+  </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<!-- D-PAD -->
+<div id="dpad" style="display:none">
+  <div></div>
+  <div class="d-btn" id="btn-up" ontouchstart="keyDown('up')" ontouchend="keyUp('up')">▲</div>
+  <div></div>
+  <div class="d-btn" id="btn-left" ontouchstart="keyDown('left')" ontouchend="keyUp('left')">◀</div>
+  <div class="d-center d-btn"></div>
+  <div class="d-btn" id="btn-right" ontouchstart="keyDown('right')" ontouchend="keyUp('right')">▶</div>
+  <div></div>
+  <div class="d-btn" id="btn-down" ontouchstart="keyDown('down')" ontouchend="keyUp('down')">▼</div>
+  <div></div>
+</div>
+
+<!-- ACTION BUTTONS -->
+<div id="actions" style="display:none">
+  <div class="act-btn" ontouchstart="useTrap()" onclick="useTrap()">🪤 VAL</div>
+  <div class="act-btn" ontouchstart="useFlash()" onclick="useFlash()">🔦 LAMP</div>
+</div>
+
+<!-- MINIMAP -->
+<div id="minimap" style="display:none"><canvas id="map-canvas" width="80" height="80"></canvas></div>
+
+<!-- OVERLAYS -->
+<div id="pickup-flash"></div>
+<div id="dmg-flash"></div>
+<div id="scare-overlay"></div>
+<div id="popup-msg">Sleutel gevonden!</div>
+
+<!-- JUMPSCARE -->
+<div id="jumpscare">
+  <div class="js-face" id="js-face">🤡</div>
+  <div class="js-text" id="js-text">IK ZIE JE!</div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover">
+  <div style="font-size:80px;animation:tilt 1s infinite">🤡</div>
+  <div class="go-title">GAME OVER</div>
+  <div class="go-sub">Mr. Flops heeft je te pakken...</div>
+  <div class="go-score">Score: <span id="go-score">0</span></div>
+  <button class="go-btn" onclick="restartGame()">↺ OPNIEUW</button>
+  <button class="go-btn" style="margin-top:10px;background:#1a1a00;border-color:#ffaa00" onclick="goTitle()">🏠 MENU</button>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="win-screen">
+  <div style="font-size:60px">🏆</div>
+  <div class="win-title">ONTSNAPT!</div>
+  <div style="font-family:'Creepster',cursive;font-size:clamp(14px,4vw,20px);color:#aaa;margin-top:8px;letter-spacing:2px;text-align:center">Je bent ontsnapt uit <span id="win-level">Kinderland</span></div>
+  <div style="font-family:'Creepster',cursive;font-size:clamp(20px,5vw,28px);color:#ffdd00;margin-top:16px">Score: <span id="win-score">0</span></div>
+  <button class="go-btn" style="margin-top:20px;background:#003300;border-color:#00cc00;color:#00ff00" onclick="nextLevel()">VOLGENDE LEVEL ▶</button>
+  <button class="go-btn" style="margin-top:8px;background:#1a0000;border-color:#660000" onclick="goTitle()">🏠 MENU</button>
+</div>
+
+<script>
+// ============================================================
+// ENGINE
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const mapCanvas = document.getElementById('map-canvas');
+const mctx = mapCanvas.getContext('2d');
+
+let W, H, TILE, COLS, ROWS;
+let gameState = 'title'; // title, playing, dead, won
+let animFrame;
+let score = 0;
+let currentLevel = 0;
+let unlockedLevels = parseInt(localStorage.getItem('mr-flops-unlocked') || '0');
+
+// Input
+const keys = {};
+function keyDown(d) { keys[d] = true; document.getElementById('btn-'+d)?.classList.add('pressed'); }
+function keyUp(d) { keys[d] = false; document.getElementById('btn-'+d)?.classList.remove('pressed'); }
+document.addEventListener('keydown', e => {
+  const map = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
+  if(map[e.key]) { e.preventDefault(); keys[map[e.key]] = true; }
+});
+document.addEventListener('keyup', e => {
+  const map = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
+  if(map[e.key]) keys[map[e.key]] = false;
+});
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  TILE = Math.floor(Math.min(W, H) / 12);
+  COLS = Math.ceil(W / TILE) + 4;
+  ROWS = Math.ceil(H / TILE) + 4;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+// LEVEL CONFIGS
+// ============================================================
+const LEVELS = [
+  {
+    name: 'KINDERLAND', emoji: '🎠', bgColor: '#0a0005', floorColor: '#1a0010', wallColor: '#2d0020',
+    accentColor: '#ff00aa', lightColor: '#ff66cc44',
+    keysNeeded: 3, flopsCount: 1, flopsType: 'normal',
+    itemEmojis: ['🧸','🎪','🎠','🍭'],
+    wallEmoji: '🎪', keyEmoji: '🗝️', exitEmoji: '🚪',
+    fogDensity: 0.7, music: '#ff00aa'
+  },
+  {
+    name: 'SPOOKHUIS', emoji: '🏠', bgColor: '#000500', floorColor: '#050f05', wallColor: '#0a1a0a',
+    accentColor: '#00ff44', lightColor: '#00ff4422',
+    keysNeeded: 4, flopsCount: 2, flopsType: 'fast',
+    itemEmojis: ['💀','🕷️','🕸️','🪦'],
+    wallEmoji: '🕸️', keyEmoji: '🗝️', exitEmoji: '🚪',
+    fogDensity: 0.8, music: '#00ff44'
+  },
+  {
+    name: 'DONKER BOS', emoji: '🌳', bgColor: '#000800', floorColor: '#001200', wallColor: '#003300',
+    accentColor: '#88ff00', lightColor: '#44ff0022',
+    keysNeeded: 4, flopsCount: 2, flopsType: 'strong',
+    itemEmojis: ['🌳','🍄','🦇','🐍'],
+    wallEmoji: '🌲', keyEmoji: '🗝️', exitEmoji: '🚪',
+    fogDensity: 0.85, music: '#88ff00'
+  },
+  {
+    name: 'HET KASTEEL', emoji: '🏰', bgColor: '#050005', floorColor: '#0f000f', wallColor: '#1a001a',
+    accentColor: '#aa00ff', lightColor: '#aa00ff22',
+    keysNeeded: 5, flopsCount: 3, flopsType: 'smart',
+    itemEmojis: ['🗡️','🛡️','💎','🕯️'],
+    wallEmoji: '🏰', keyEmoji: '🗝️', exitEmoji: '🚪',
+    fogDensity: 0.9, music: '#aa00ff'
+  },
+  {
+    name: 'MR. FLOPS LAIR', emoji: '👁️', bgColor: '#0a0000', floorColor: '#150000', wallColor: '#2a0000',
+    accentColor: '#ff0000', lightColor: '#ff000033',
+    keysNeeded: 5, flopsCount: 4, flopsType: 'boss',
+    itemEmojis: ['🤡','🩸','💀','☠️'],
+    wallEmoji: '🩸', keyEmoji: '🗝️', exitEmoji: '🚪',
+    fogDensity: 0.95, music: '#ff0000'
+  }
+];
+
+// ============================================================
+// GAME ENTITIES
+// ============================================================
+let map = [], mapW, mapH;
+let player = {};
+let flops = [];
+let items = [];
+let exit = {};
+let traps = [], flashItems = [];
+let camera = {x:0, y:0};
+let hp = 100, sanity = 100;
+let keysCollected = 0;
+let trapsLeft = 2, flashLeft = 1;
+let lastTime = 0;
+let popupTimeout = null;
+let scareTimeout = null;
+let invincible = false;
+
+// ============================================================
+// MAP GENERATION
+// ============================================================
+function generateMap(level) {
+  const lvl = LEVELS[level];
+  mapW = 22; mapH = 18;
+  map = [];
+
+  // Fill with walls
+  for(let y = 0; y < mapH; y++) {
+    map[y] = [];
+    for(let x = 0; x < mapW; x++) map[y][x] = 1;
+  }
+
+  // Recursive backtracker maze
+  function carve(x, y) {
+    const dirs = [[0,-2],[2,0],[0,2],[-2,0]].sort(()=>Math.random()-0.5);
+    for(const [dx,dy] of dirs) {
+      const nx=x+dx, ny=y+dy;
+      if(nx>0&&ny>0&&nx<mapW-1&&ny<mapH-1&&map[ny][nx]===1) {
+        map[y+dy/2][x+dx/2] = 0;
+        map[ny][nx] = 0;
+        carve(nx,ny);
+      }
+    }
+  }
+  map[1][1] = 0;
+  carve(1,1);
+
+  // Widen some corridors
+  for(let i=0;i<6;i++){
+    const rx=2+Math.floor(Math.random()*(mapW-4));
+    const ry=2+Math.floor(Math.random()*(mapH-4));
+    map[ry][rx]=0;map[ry][rx+1]=0;map[ry+1][rx]=0;
+  }
+
+  // Place items
+  items = [];
+  const keysNeeded = lvl.keysNeeded;
+  let placed = 0;
+  while(placed < keysNeeded) {
+    const rx=2+Math.floor(Math.random()*(mapW-4));
+    const ry=2+Math.floor(Math.random()*(mapH-4));
+    if(map[ry][rx]===0&&!items.find(i=>i.x===rx&&i.y===ry)) {
+      items.push({x:rx,y:ry,type:'key',collected:false});
+      placed++;
+    }
+  }
+  // Scatter decorative items
+  for(let i=0;i<8;i++){
+    const rx=1+Math.floor(Math.random()*(mapW-2));
+    const ry=1+Math.floor(Math.random()*(mapH-2));
+    if(map[ry][rx]===0) items.push({x:rx,y:ry,type:'deco',collected:false,emoji:lvl.itemEmojis[Math.floor(Math.random()*lvl.itemEmojis.length)]});
+  }
+
+  // Place exit far from start
+  exit = {x:mapW-2,y:mapH-2,open:false};
+  map[mapH-2][mapW-2] = 0;
+  map[mapH-3][mapW-2] = 0;
+  map[mapH-2][mapW-3] = 0;
+
+  // Spawn Mr. Flops
+  flops = [];
+  for(let i=0;i<lvl.flopsCount;i++){
+    let fx,fy;
+    do { fx=3+Math.floor(Math.random()*(mapW-6)); fy=3+Math.floor(Math.random()*(mapH-6)); }
+    while(map[fy][fx]!==0||(Math.abs(fx-2)<4&&Math.abs(fy-2)<4));
+    flops.push({
+      x:fx*TILE+TILE/2, y:fy*TILE+TILE/2,
+      speed: lvl.flopsType==='fast'?1.8:lvl.flopsType==='strong'?1.2:lvl.flopsType==='boss'?2:1.4,
+      damage: lvl.flopsType==='strong'?20:lvl.flopsType==='boss'?25:12,
+      trapped:false,trappedTimer:0,
+      stunTimer:0,
+      alertTimer:0, lastAlertPos:{x:0,y:0},
+      path:[],pathTimer:0,
+      type:lvl.flopsType,
+      size: lvl.flopsType==='strong'||lvl.flopsType==='boss'?1.4:1
+    });
+  }
+
+  // Player start
+  player = {
+    x: 1.5*TILE, y: 1.5*TILE,
+    speed: 2.8,
+    size: TILE*0.38,
+    moving: false,
+    footTimer: 0
+  };
+
+  hp = 100; sanity = 100;
+  keysCollected = 0;
+  trapsLeft = 2; flashLeft = 1;
+  score = 0;
+  invincible = false;
+}
+
+// ============================================================
+// PATHFINDING (simple BFS)
+// ============================================================
+function findPath(sx,sy,ex,ey) {
+  const tx=Math.floor(sx/TILE),ty=Math.floor(sy/TILE);
+  const gx=Math.floor(ex/TILE),gy=Math.floor(ey/TILE);
+  if(tx===gx&&ty===gy)return [];
+
+  const visited = new Set();
+  const queue = [[tx,ty,[]]];
+  const key = (x,y)=>x+','+y;
+  visited.add(key(tx,ty));
+
+  while(queue.length) {
+    const [cx,cy,path] = queue.shift();
+    for(const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]]) {
+      const nx=cx+dx,ny=cy+dy;
+      if(nx<0||ny<0||nx>=mapW||ny>=mapH)continue;
+      if(map[ny]&&map[ny][nx]===1)continue;
+      const k=key(nx,ny);
+      if(visited.has(k))continue;
+      const newPath=[...path,{x:nx*TILE+TILE/2,y:ny*TILE+TILE/2}];
+      if(nx===gx&&ny===gy)return newPath;
+      visited.add(k);
+      queue.push([nx,ny,newPath]);
+    }
+  }
+  return [];
+}
+
+// ============================================================
+// COLLISION
+// ============================================================
+function solidAt(wx,wy) {
+  const tx=Math.floor(wx/TILE),ty=Math.floor(wy/TILE);
+  if(tx<0||ty<0||tx>=mapW||ty>=mapH)return true;
+  return map[ty]&&map[ty][tx]===1;
+}
+
+function moveEntity(e, dx, dy) {
+  const r = e.size||TILE*0.35;
+  const nx=e.x+dx, ny=e.y+dy;
+  const corners = [[-r,-r],[r,-r],[-r,r],[r,r]];
+  let canX=true,canY=true;
+  for(const [cx,cy] of corners){
+    if(solidAt(nx+cx,e.y+cy))canX=false;
+    if(solidAt(e.x+cx,ny+cy))canY=false;
+  }
+  if(canX)e.x=nx;
+  if(canY)e.y=ny;
+}
+
+// ============================================================
+// UPDATE
+// ============================================================
+function update(dt) {
+  if(gameState!=='playing')return;
+  const lvl = LEVELS[currentLevel];
+
+  // Player movement
+  let pdx=0,pdy=0;
+  if(keys['up']||keys['w'])    pdy=-1;
+  if(keys['down']||keys['s'])  pdy=1;
+  if(keys['left']||keys['a'])  pdx=-1;
+  if(keys['right']||keys['d']) pdx=1;
+
+  if(pdx&&pdy){pdx*=0.707;pdy*=0.707;}
+  const spd = player.speed * TILE * dt;
+  if(pdx||pdy){
+    moveEntity(player, pdx*spd, pdy*spd);
+    player.moving=true;
+    player.footTimer+=dt;
+  } else {
+    player.moving=false;
+  }
+
+  // Camera
+  camera.x += (player.x - W/2 - camera.x) * 0.12;
+  camera.y += (player.y - H/2 - camera.y) * 0.12;
+
+  // Item collection
+  for(const item of items) {
+    if(item.collected)continue;
+    const dist=Math.hypot(player.x-item.x*TILE-TILE/2, player.y-item.y*TILE-TILE/2);
+    if(dist < TILE*0.65) {
+      item.collected=true;
+      if(item.type==='key'){
+        keysCollected++;
+        score+=100;
+        showPopup('🗝️ Sleutel ' + keysCollected + '/' + lvl.keysNeeded + ' gevonden!');
+        flashPickup();
+        if(keysCollected>=lvl.keysNeeded){
+          exit.open=true;
+          showPopup('🚪 De uitgang is open! ONTSNAP!');
+        }
+      }
+    }
+  }
+
+  // Exit check
+  if(exit.open){
+    const dist=Math.hypot(player.x-exit.x*TILE-TILE/2, player.y-exit.y*TILE-TILE/2);
+    if(dist<TILE*0.8) winLevel();
+  }
+
+  // Mr. Flops AI
+  for(const f of flops){
+    if(f.trapped){ f.trappedTimer-=dt; if(f.trappedTimer<=0)f.trapped=false; continue; }
+    if(f.stunTimer>0){ f.stunTimer-=dt; continue; }
+
+    const distToPlayer=Math.hypot(player.x-f.x,player.y-f.y);
+    const alertRange = lvl.flopsType==='smart'?TILE*9:TILE*7;
+
+    f.pathTimer-=dt;
+    if(f.pathTimer<=0){
+      f.pathTimer=0.5;
+      if(distToPlayer<alertRange){
+        f.alertTimer=3;
+        f.lastAlertPos={x:player.x,y:player.y};
+        f.path=findPath(f.x,f.y,player.x,player.y);
+      } else if(f.alertTimer>0){
+        f.alertTimer-=0.5;
+        f.path=findPath(f.x,f.y,f.lastAlertPos.x,f.lastAlertPos.y);
+      } else {
+        // Wander
+        const wx=(1+Math.floor(Math.random()*(mapW-2)))*TILE;
+        const wy=(1+Math.floor(Math.random()*(mapH-2)))*TILE;
+        f.path=findPath(f.x,f.y,wx,wy);
+      }
+    }
+
+    // Follow path
+    if(f.path&&f.path.length){
+      const target=f.path[0];
+      const dx=target.x-f.x,dy=target.y-f.y;
+      const d=Math.hypot(dx,dy);
+      if(d<4){ f.path.shift(); }
+      else {
+        const s=f.speed*TILE*dt;
+        moveEntity(f, (dx/d)*s, (dy/d)*s);
+      }
+    }
+
+    // Sanity drain when nearby
+    if(distToPlayer<TILE*5) sanity=Math.max(0,sanity-dt*3);
+
+    // Damage player
+    if(distToPlayer < TILE*0.7 && !invincible){
+      hp=Math.max(0,hp-f.damage*dt*5);
+      flashDamage();
+      if(hp<=0) gameOver();
+    }
+
+    // Jumpscare trigger
+    if(distToPlayer < TILE*1.2 && !invincible){
+      triggerJumpscare();
+    }
+  }
+
+  // Sanity effects
+  if(sanity<30){ document.getElementById('scare-overlay').style.opacity=(0.3-sanity/100)*1.5+''; }
+  else document.getElementById('scare-overlay').style.opacity='0';
+
+  // Update HUD
+  document.getElementById('hp-fill').style.width=hp+'%';
+  document.getElementById('san-fill').style.width=sanity+'%';
+  document.getElementById('hp-fill').style.background=hp<30?'#ff0000':hp<60?'linear-gradient(90deg,#ff4400,#ffaa00)':'linear-gradient(90deg,#ff0000,#ff4400)';
+  document.getElementById('keys-collected').textContent=keysCollected;
+  document.getElementById('score-display').textContent=score;
+
+  score=Math.max(0,score); // keep non-negative
+
+  // Draw minimap
+  drawMinimap();
+}
+
+// ============================================================
+// DRAW
+// ============================================================
+function draw() {
+  const lvl = LEVELS[currentLevel];
+  ctx.fillStyle = lvl.bgColor;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  ctx.translate(-camera.x+W/2, -camera.y+H/2);
+
+  // Floor
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      const wx=x*TILE,wy=y*TILE;
+      if(map[y][x]===0){
+        ctx.fillStyle=lvl.floorColor;
+        ctx.fillRect(wx,wy,TILE,TILE);
+        // Floor detail
+        ctx.fillStyle='rgba(255,255,255,0.02)';
+        ctx.fillRect(wx+2,wy+2,TILE-4,TILE-4);
+      } else {
+        // Wall
+        ctx.fillStyle=lvl.wallColor;
+        ctx.fillRect(wx,wy,TILE,TILE);
+        ctx.fillStyle='rgba(0,0,0,0.4)';
+        ctx.fillRect(wx,wy+TILE-3,TILE,3);
+        ctx.fillRect(wx+TILE-3,wy,3,TILE);
+      }
+    }
+  }
+
+  // Items
+  ctx.font = TILE*0.55+'px serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  for(const item of items){
+    if(item.collected)continue;
+    const wx=item.x*TILE+TILE/2, wy=item.y*TILE+TILE/2;
+    if(item.type==='key'){
+      // Glow
+      ctx.shadowColor=lvl.accentColor;ctx.shadowBlur=16;
+      ctx.fillText('🗝️',wx,wy+Math.sin(Date.now()*0.003)*3);
+      ctx.shadowBlur=0;
+    } else {
+      ctx.fillText(item.emoji,wx,wy);
+    }
+  }
+
+  // Exit
+  {
+    const wx=exit.x*TILE+TILE/2,wy=exit.y*TILE+TILE/2;
+    ctx.shadowColor=exit.open?'#00ff00':'#ff0000';ctx.shadowBlur=20;
+    ctx.font=TILE*0.8+'px serif';
+    ctx.fillText(exit.open?'🚪':'🔒',wx,wy);
+    ctx.shadowBlur=0;
+    if(exit.open){
+      ctx.strokeStyle='#00ff00';ctx.lineWidth=2;ctx.globalAlpha=0.4+Math.sin(Date.now()*0.005)*0.3;
+      ctx.strokeRect(exit.x*TILE,exit.y*TILE,TILE*2,TILE*2);
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Traps
+  for(const t of traps){
+    ctx.font=TILE*0.5+'px serif';
+    ctx.fillText('🪤',t.x,t.y);
+  }
+
+  // Mr. Flops
+  for(const f of flops){
+    const distToPlayer=Math.hypot(player.x-f.x,player.y-f.y);
+    const visible=distToPlayer<TILE*8;
+    if(!visible)continue;
+
+    ctx.save();
+    ctx.translate(f.x,f.y);
+    if(f.stunTimer>0){ ctx.globalAlpha=0.5; ctx.rotate(Math.sin(Date.now()*0.02)*0.5); }
+
+    const sc = f.size||1;
+    ctx.font=(TILE*0.85*sc)+'px serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+
+    // Flops type variants
+    const face = f.type==='boss'?'🤡':f.type==='strong'?'👹':f.type==='fast'?'😈':f.type==='smart'?'🎭':'🤡';
+
+    // Shadow
+    ctx.shadowColor='#ff0000';ctx.shadowBlur=f.alertTimer>0?24:10;
+    ctx.fillText(face,0,0);
+    ctx.shadowBlur=0;
+
+    // Alert indicator
+    if(f.alertTimer>0&&distToPlayer<TILE*8){
+      ctx.font='10px sans-serif';ctx.fillStyle='#ff4400';
+      ctx.fillText('!',0,-TILE*0.7*sc);
+    }
+    ctx.restore();
+  }
+
+  // Player
+  ctx.save();
+  ctx.translate(player.x,player.y);
+  if(invincible) ctx.globalAlpha=0.5+Math.sin(Date.now()*0.02)*0.5;
+  ctx.font=(TILE*0.7)+'px serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('🧍',0,0);
+  ctx.restore();
+
+  // Fog of war
+  const fog = ctx.createRadialGradient(player.x,player.y,TILE*1.5,player.x,player.y,TILE*(sanity>50?5:3));
+  fog.addColorStop(0,'rgba(0,0,0,0)');
+  fog.addColorStop(1,'rgba(0,0,0,'+lvl.fogDensity+')');
+  ctx.fillStyle=fog;
+  ctx.fillRect(0,0,mapW*TILE,mapH*TILE);
+
+  // Light flicker
+  const ambientLight = ctx.createRadialGradient(player.x,player.y,0,player.x,player.y,TILE*2.5);
+  ambientLight.addColorStop(0,lvl.lightColor);
+  ambientLight.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ambientLight;
+  ctx.fillRect(0,0,mapW*TILE,mapH*TILE);
+
+  ctx.restore();
+}
+
+function drawMinimap() {
+  const lvl=LEVELS[currentLevel];
+  const scale=80/Math.max(mapW,mapH);
+  mctx.fillStyle='rgba(0,0,0,0.9)';
+  mctx.fillRect(0,0,80,80);
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      if(map[y][x]===0){
+        mctx.fillStyle='#222';
+        mctx.fillRect(x*scale,y*scale,scale,scale);
+      }
+    }
+  }
+  // Items on map
+  for(const item of items){
+    if(!item.collected&&item.type==='key'){
+      mctx.fillStyle=lvl.accentColor;
+      mctx.fillRect(item.x*scale-2,item.y*scale-2,4,4);
+    }
+  }
+  // Exit
+  mctx.fillStyle=exit.open?'#00ff00':'#ff4400';
+  mctx.fillRect(exit.x*scale-3,exit.y*scale-3,6,6);
+  // Player
+  const px=(player.x/TILE)*scale,py=(player.y/TILE)*scale;
+  mctx.fillStyle='#ffffff';
+  mctx.beginPath();mctx.arc(px,py,3,0,Math.PI*2);mctx.fill();
+  // Flops
+  for(const f of flops){
+    const fx=(f.x/TILE)*scale,fy=(f.y/TILE)*scale;
+    mctx.fillStyle='#ff0000';
+    mctx.beginPath();mctx.arc(fx,fy,2.5,0,Math.PI*2);mctx.fill();
+  }
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+function gameLoop(ts) {
+  const dt = Math.min((ts-lastTime)/1000, 0.05);
+  lastTime=ts;
+  if(gameState==='playing'){ update(dt); draw(); }
+  animFrame=requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function useTrap(){
+  if(trapsLeft<=0){showPopup('Geen vallen meer!');return;}
+  trapsLeft--;
+  traps.push({x:player.x,y:player.y});
+  showPopup('🪤 Val geplaatst!');
+  // Check if flops walks into trap
+  for(const f of flops){
+    const d=Math.hypot(f.x-player.x,f.y-player.y);
+    if(d<TILE*1.5){f.trapped=true;f.trappedTimer=5;showPopup('🪤 Mr. Flops zit vast! 5 sec');}
+  }
+}
+
+function useFlash(){
+  if(flashLeft<=0){showPopup('Geen zaklamp meer!');return;}
+  flashLeft--;
+  // Stun nearby flops
+  let stunned=false;
+  for(const f of flops){
+    const d=Math.hypot(f.x-player.x,f.y-player.y);
+    if(d<TILE*4){f.stunTimer=3;stunned=true;}
+  }
+  showPopup(stunned?'🔦 Mr. Flops verblind! 3 sec':'🔦 Niemand in bereik');
+  document.getElementById('pickup-flash').style.opacity='1';
+  setTimeout(()=>document.getElementById('pickup-flash').style.opacity='0',300);
+}
+
+// ============================================================
+// EFFECTS
+// ============================================================
+function flashPickup(){
+  const el=document.getElementById('pickup-flash');
+  el.style.opacity='1';setTimeout(()=>el.style.opacity='0',200);
+}
+function flashDamage(){
+  if(invincible)return;
+  invincible=true;setTimeout(()=>invincible=false,1500);
+  const el=document.getElementById('dmg-flash');
+  el.style.opacity='1';setTimeout(()=>el.style.opacity='0',300);
+}
+
+let jsActive=false;
+function triggerJumpscare(){
+  if(jsActive)return;
+  jsActive=true;
+  const faces=['🤡','👹','😈','🎭','💀'];
+  const texts=['IK ZIE JE!','BOE!','HAHAHA!','LOOP NIET WEG...','PAKJE ERBIJ!'];
+  const el=document.getElementById('jumpscare');
+  document.getElementById('js-face').textContent=faces[Math.floor(Math.random()*faces.length)];
+  document.getElementById('js-text').textContent=texts[Math.floor(Math.random()*texts.length)];
+  el.style.display='flex';
+  sanity=Math.max(0,sanity-20);
+  setTimeout(()=>{el.style.display='none';jsActive=false;},600);
+}
+
+function showPopup(msg){
+  clearTimeout(popupTimeout);
+  const el=document.getElementById('popup-msg');
+  el.textContent=msg;el.style.opacity='1';
+  popupTimeout=setTimeout(()=>el.style.opacity='0',2500);
+}
+
+// ============================================================
+// GAME STATES
+// ============================================================
+function showLevelSelect(){
+  document.getElementById('start-btn').style.display='none';
+  const ls=document.getElementById('level-select');ls.style.display='flex';
+  // Update unlock state
+  for(let i=1;i<=4;i++){
+    const btn=document.getElementById('lvl'+(i-1)+'-btn');
+    if(btn&&i<=unlockedLevels){
+      btn.classList.remove('locked');
+      btn.onclick=()=>startLevel(i);
+      btn.querySelector('.lock').textContent='🔓';
+    }
+  }
+}
+
+function startLevel(level){
+  currentLevel=level;
+  const lvl=LEVELS[level];
+  document.getElementById('title-screen').style.display='none';
+  document.getElementById('gameover').style.display='none';
+  document.getElementById('win-screen').style.display='none';
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('dpad').style.display='grid';
+  document.getElementById('actions').style.display='flex';
+  document.getElementById('minimap').style.display='block';
+  document.getElementById('level-name').textContent=lvl.emoji+' '+lvl.name;
+  document.getElementById('keys-needed').textContent=lvl.keysNeeded;
+  resize();
+  generateMap(level);
+  gameState='playing';
+  showPopup('👻 Niveau '+( level+1)+': '+lvl.name+' — Verzamel alle sleutels!');
+}
+
+function gameOver(){
+  gameState='dead';
+  document.getElementById('go-score').textContent=score;
+  document.getElementById('gameover').style.display='flex';
+}
+
+function winLevel(){
+  gameState='won';
+  score+=500+(Math.floor(hp)*2);
+  document.getElementById('win-score').textContent=score;
+  document.getElementById('win-level').textContent=LEVELS[currentLevel].name;
+  // Unlock next level
+  if(currentLevel+1>unlockedLevels){
+    unlockedLevels=currentLevel+1;
+    localStorage.setItem('mr-flops-unlocked',unlockedLevels);
+  }
+  document.getElementById('win-screen').style.display='flex';
+}
+
+function nextLevel(){
+  if(currentLevel+1<LEVELS.length) startLevel(currentLevel+1);
+  else goTitle();
+}
+
+function restartGame(){
+  document.getElementById('gameover').style.display='none';
+  startLevel(currentLevel);
+}
+
+function goTitle(){
+  gameState='title';
+  document.getElementById('title-screen').style.display='flex';
+  document.getElementById('title-screen').style.flexDirection='column';
+  document.getElementById('hud').style.display='none';
+  document.getElementById('dpad').style.display='none';
+  document.getElementById('actions').style.display='none';
+  document.getElementById('minimap').style.display='none';
+  document.getElementById('gameover').style.display='none';
+  document.getElementById('win-screen').style.display='none';
+  document.getElementById('start-btn').style.display='block';
+  document.getElementById('level-select').style.display='none';
+}
+
+// ============================================================
+// START
+// ============================================================
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
